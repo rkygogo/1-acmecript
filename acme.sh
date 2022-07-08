@@ -53,8 +53,10 @@ iptables -t mangle -F >/dev/null 2>&1
 iptables -F >/dev/null 2>&1
 iptables -X >/dev/null 2>&1
 netfilter-persistent save >/dev/null 2>&1
-systemctl stop apache2 >/dev/null 2>&1
-systemctl disable apache2 >/dev/null 2>&1
+if [[ -n $(apachectl -v 2>/dev/null) ]]; then
+systemctl stop httpd.service >/dev/null 2>&1
+systemctl disable httpd.service >/dev/null 2>&1
+fi
 green "所有端口已开放"
 sleep 2
 if [[ -n $(lsof -i :80|grep -v "PID") ]]; then
