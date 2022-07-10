@@ -56,6 +56,8 @@ netfilter-persistent save >/dev/null 2>&1
 if [[ -n $(apachectl -v 2>/dev/null) ]]; then
 systemctl stop httpd.service >/dev/null 2>&1
 systemctl disable httpd.service >/dev/null 2>&1
+service apache2 stop >/dev/null 2>&1
+systemctl disable apache2 >/dev/null 2>&1
 fi
 green "所有端口已开放"
 sleep 2
