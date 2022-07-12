@@ -81,6 +81,14 @@ curl https://get.acme.sh | sh -s email=$Aemail
 [[ -n $(/root/.acme.sh/acme.sh -v 2>/dev/null) ]] && green "安装acme.sh证书申请程序成功" || red "安装acme.sh证书申请程序失败" 
 bash /root/.acme.sh/acme.sh --upgrade --use-wget --auto-upgrade
 }
+
+installCA(){
+if [[ -f '/etc/hysteria/config.json' ]]; then
+bash ~/.acme.sh/acme.sh --install-cert -d ${ym} --key-file /etc/hysteria/private.key --fullchain-file /etc/hysteria/cert.crt --ecc
+fi
+bash ~/.acme.sh/acme.sh --install-cert -d ${ym} --key-file /root/private.key --fullchain-file /root/cert.crt --ecc
+}
+
 ACMEstandaloneDNS(){
 readp "请输入解析完成的二级域名:" ym
 green "已输入的二级域名:$ym" && sleep 1
@@ -92,7 +100,7 @@ fi
 if [[ $domainIP = $v6 ]]; then
 bash /root/.acme.sh/acme.sh  --issue -d ${ym} --standalone -k ec-256 --server letsencrypt --listen-v6 --insecure
 fi
-bash ~/.acme.sh/acme.sh --install-cert -d ${ym} --key-file /root/private.key --fullchain-file /root/cert.crt --ecc
+installCA
 checktls
 }
 ACMEDNS(){
@@ -150,7 +158,7 @@ if [[ $domainIP = $v6 ]]; then
 bash /root/.acme.sh/acme.sh --issue --dns dns_ali -d ${ym} -k ec-256 --server letsencrypt --listen-v6 --insecure
 fi
 esac
-bash ~/.acme.sh/acme.sh --install-cert -d ${ym} --key-file /root/private.key --fullchain-file /root/cert.crt --ecc
+installCA
 checktls
 }
 wro(){
@@ -171,26 +179,37 @@ fi
 fi
 }
 checktls(){
+fail(){
+red "遗憾，域名证书申请失败"
+yellow "建议一：更换下二级域名名称再尝试执行脚本（重要）"
+green "例：原二级域名 x.ygkkk.eu.org 或 x.ygkkk.cf ，在cloudflare中重命名其中的x名称，确定并生效"
+echo
+yellow "建议二：更换下当前本地网络IP环境，再尝试执行脚本"
+rm -rf acme.sh
+}
+if [[ -f /etc/hysteria/cert.crt && -f /etc/hysteria/private.key ]]; then
+if [[ -s /etc/hysteria/cert.crt && -s /etc/hysteria/private.key ]]; then
+green "hysteria域名证书申请成功或已存在！域名证书（cert.crt）和密钥（private.key）已保存到 /etc/hysteria 文件夹" 
+else
+fail
+fi
+fi
 if [[ -f /root/cert.crt && -f /root/private.key ]]; then
 if [[ -s /root/cert.crt && -s /root/private.key ]]; then
 sed -i '/--cron/d' /etc/crontab
 echo "0 0 * * * root bash /root/.acme.sh/acme.sh --cron -f >/dev/null 2>&1" >> /etc/crontab
-green "域名证书申请成功或已存在！域名证书（cert.crt）和密钥（private.key）已保存到 /root 文件夹" 
+green "root目录下的域名证书申请成功或已存在！域名证书（cert.crt）和密钥（private.key）已保存到 /root 文件夹" 
 yellow "公钥文件crt路径如下，可直接复制"
 green "/root/cert.crt"
 yellow "密钥文件key路径如下，可直接复制"
 green "/root/private.key"
 rm -rf acme.sh
 else
-red "遗憾，域名证书申请失败"
-yellow "建议一：更换下二级域名名称再尝试执行脚本（重要）"
-green "例：原二级域名 x.kkkyg.eu.org 或 x.kkkyg.cf ，在cloudflare中重命名其中的x名称，确定并生效"
-echo
-yellow "建议二：更换下当前本地网络IP环境，再尝试执行脚本"
-rm -rf acme.sh
+fail
 fi
 fi
 }
+
 acme(){
 yellow "稍等3秒，检测IP环境中"
 wgcfv6=$(curl -s6m6 https://www.cloudflare.com/cdn-cgi/trace -k | grep warp | cut -d= -f2)
