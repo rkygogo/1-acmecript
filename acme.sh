@@ -84,6 +84,7 @@ bash /root/.acme.sh/acme.sh --upgrade --use-wget --auto-upgrade
 
 installCA(){
 if [[ -f '/etc/hysteria/config.json' ]]; then
+echo ${ym} > /etc/hysteria/ca.log
 bash ~/.acme.sh/acme.sh --install-cert -d ${ym} --key-file /etc/hysteria/private.key --fullchain-file /etc/hysteria/cert.crt --ecc
 fi
 bash ~/.acme.sh/acme.sh --install-cert -d ${ym} --key-file /root/private.key --fullchain-file /root/cert.crt --ecc
