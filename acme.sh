@@ -28,8 +28,8 @@ fi
 acme1(){
 [[ $(type -P yum) ]] && yumapt='yum -y' || yumapt='apt -y'
 [[ $(type -P curl) ]] || (yellow "检测到curl未安装，升级安装中" && $yumapt update;$yumapt install curl)
+[[ $(type -P lsof) ]] || (yellow "检测到lsof未安装，升级安装中" && $yumapt update;$yumapt install lsof)
 [[ $(type -P socat) ]] || $yumapt install socat
-$yumapt install lsof -y
 v6=$(curl -s6m3 https://ip.gs -k)
 v4=$(curl -s4m3 https://ip.gs -k)
 if [[ -z $v4 ]]; then
@@ -83,7 +83,7 @@ bash /root/.acme.sh/acme.sh --upgrade --use-wget --auto-upgrade
 }
 
 installCA(){
-if [[ -f '/etc/hysteria/config.json' ]]; then
+if [[ -f '/etc/hysteria/config.json' ]] && [[ ! -f /etc/hysteria/cert.crt && ! -f /etc/hysteria/private.key ]]; then
 echo ${ym} > /etc/hysteria/ca.log
 bash ~/.acme.sh/acme.sh --install-cert -d ${ym} --key-file /etc/hysteria/private.key --fullchain-file /etc/hysteria/cert.crt --ecc
 fi
@@ -188,15 +188,10 @@ echo
 yellow "建议二：更换下当前本地网络IP环境，再尝试执行脚本"
 rm -rf acme.sh
 }
-if [[ -f /etc/hysteria/cert.crt && -f /etc/hysteria/private.key ]]; then
-if [[ -s /etc/hysteria/cert.crt && -s /etc/hysteria/private.key ]]; then
+if [[ -f /root/cert.crt && -f /root/private.key ]] && [[ -s /root/cert.crt && -s /root/private.key ]]; then
+if [[ -f /etc/hysteria/cert.crt && -f /etc/hysteria/private.key ]] && [[ -s /etc/hysteria/cert.crt && -s /etc/hysteria/private.key ]]; then
 green "hysteria域名证书申请成功或已存在！域名证书（cert.crt）和密钥（private.key）已保存到 /etc/hysteria 文件夹" 
-else
-fail
 fi
-fi
-if [[ -f /root/cert.crt && -f /root/private.key ]]; then
-if [[ -s /root/cert.crt && -s /root/private.key ]]; then
 sed -i '/--cron/d' /etc/crontab
 echo "0 0 * * * root bash /root/.acme.sh/acme.sh --cron -f >/dev/null 2>&1" >> /etc/crontab
 green "root目录下的域名证书申请成功或已存在！域名证书（cert.crt）和密钥（private.key）已保存到 /root 文件夹" 
@@ -208,7 +203,6 @@ rm -rf acme.sh
 else
 fail
 fi
-fi
 }
 
 acme(){
@@ -216,7 +210,7 @@ yellow "稍等3秒，检测IP环境中"
 wgcfv6=$(curl -s6m6 https://www.cloudflare.com/cdn-cgi/trace -k | grep warp | cut -d= -f2)
 wgcfv4=$(curl -s4m6 https://www.cloudflare.com/cdn-cgi/trace -k | grep warp | cut -d= -f2)
 if [[ ! $wgcfv4 =~ on|plus && ! $wgcfv6 =~ on|plus ]]; then
-ab="1.选择standalone独立模式申请证书（仅需域名），安装过程中将强制释放80端口，相关http应用端口可能都将失效，请自行处理。\n2.选择DNS API模式申请证书（需域名、ID、Key）\n0.返回上一层\n 请选择："
+ab="1.选择standalone独立模式申请证书（仅需域名），安装过程中将强制释放80端口，相关http应用端口可能都将失效，请自行处理。\n2.选择DNS API模式申请证书（需域名、ID、Key），目前支持Cloudflare域名解析平台、腾讯域名解析平台、阿里域名解析平台\n0.返回上一层\n 请选择："
 readp "$ab" cd
 case "$cd" in 
 1 ) acme1 && acme2 && acme3 && ACMEstandaloneDNS;;
@@ -304,7 +298,6 @@ yellow "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 yellow " 提示："
 yellow " 一、standalone模式仅支持单域名证书申请"
 yellow " 二、DNS API模式不支持freenom免费域名申请，支持单域名与泛域名证书申请"
-yellow " 三、证书申请成功后，域名证书（cert.crt）和密钥（private.key）保存在root目录下"
 echo
 green " 1. acme.sh申请letsencrypt ECC证书（支持standalone模式与DNS API模式） "
 green " 2. 查询已申请成功的域名及自动续期时间点；撤销并删除当前已申请的域名证书 "
@@ -321,3 +314,4 @@ case "$NumberInput" in
 esac
 }   
 start_menu "first" 
+
