@@ -128,15 +128,16 @@ readp "请输入解析完成的二级域名:" ym
 green "已输入的二级域名:$ym" && sleep 1
 domainIP=$(curl -s ipget.net/?ip="$ym")
 wro
-if [[ $domainIP = $v4 ]]; then
+if [[ -n $(echo $domainIP | grep ".") ]]; then
 bash /root/.acme.sh/acme.sh  --issue -d ${ym} --standalone -k ec-256 --server letsencrypt --insecure
 fi
-if [[ $domainIP = $v6 ]]; then
+if [[ -n $(echo $domainIP | grep ":") ]]; then
 bash /root/.acme.sh/acme.sh  --issue -d ${ym} --standalone -k ec-256 --server letsencrypt --listen-v6 --insecure
 fi
 installCA
 checktls
 }
+
 ACMEDNS(){
 readp "请输入解析完成的域名:" ym
 green "已输入的域名:$ym" && sleep 1
@@ -200,14 +201,6 @@ v4v6
 if [[ -n $(echo $domainIP | grep nginx) ]]; then
 yellow "当前域名解析到的IP：无"
 red "域名解析无效，请检查域名是否填写正确或稍等几分钟等待解析完成再执行脚本" && rm -rf acme.sh && exit 
-elif [[ -n $(echo $domainIP | grep ":") || -n $(echo $domainIP | grep ".") ]]; then
-if [[ $domainIP != $v4 ]] && [[ $domainIP != $v6 ]]; then
-yellow "当前域名解析到的IP：$domainIP"
-red "当前域名解析的IP与当前VPS使用的IP不匹配"
-green "建议如下："
-yellow "1、请确保CDN小黄云关闭状态(仅限DNS)，其他域名解析网站设置同理"
-yellow "2、请检查域名解析网站设置的IP是否正确"
-rm -rf acme.sh && exit 
 else
 green "恭喜，域名解析正确，当前域名解析到的IP：$domainIP"
 fi
