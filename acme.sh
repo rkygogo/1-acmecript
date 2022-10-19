@@ -7,7 +7,7 @@ green(){ echo -e "\033[32m\033[01m$1\033[0m";}
 yellow(){ echo -e "\033[33m\033[01m$1\033[0m";}
 white(){ echo -e "\033[37m\033[01m$1\033[0m";}
 readp(){ read -p "$(yellow "$1")" $2;}
-[[ $EUID -ne 0 ]] && yellow "请以root模式运行脚本" && rm -rf acme.sh && exit 1
+[[ $EUID -ne 0 ]] && yellow "请以root模式运行脚本" && rm -rf acme.sh && exit
 if [[ -f /etc/redhat-release ]]; then
 release="Centos"
 elif cat /etc/issue | grep -q -E -i "debian"; then
@@ -23,15 +23,21 @@ release="Ubuntu"
 elif cat /proc/version | grep -q -E -i "centos|red hat|redhat"; then
 release="Centos"
 else 
-red "不支持你当前系统，请选择使用Ubuntu,Debian,Centos系统" && rm -rf acme.sh && exit 1
+red "不支持你当前系统，请选择使用Ubuntu,Debian,Centos系统" && rm -rf acme.sh && exit 
 fi
+
+v4v6(){
+v6=$(curl -s6m5 https://ip.gs -k)
+v4=$(curl -s4m5 https://ip.gs -k)
+}
+
+
 acme1(){
 [[ $(type -P yum) ]] && yumapt='yum -y' || yumapt='apt -y'
 [[ $(type -P curl) ]] || (yellow "检测到curl未安装，升级安装中" && $yumapt update;$yumapt install curl)
 [[ $(type -P lsof) ]] || (yellow "检测到lsof未安装，升级安装中" && $yumapt update;$yumapt install lsof)
 [[ $(type -P socat) ]] || $yumapt install socat
-v6=$(curl -s6m3 https://ip.gs -k)
-v4=$(curl -s4m3 https://ip.gs -k)
+v4v6
 if [[ -z $v4 ]]; then
 yellow "检测到VPS为纯IPV6 Only，添加dns64"
 echo -e nameserver 2a01:4f8:c2c:123f::1 > /etc/resolv.conf
@@ -77,6 +83,11 @@ Aemail=$auto@gmail.com
 fi
 yellow "当前注册的邮箱名称：$Aemail"
 green "开始安装acme.sh申请证书脚本"
+wget -N https://github.com/Neilpang/acme.sh/archive/master.tar.gz >/dev/null 2>&1
+tar -zxvf master.tar.gz >/dev/null 2>&1
+cd acme.sh-master >/dev/null 2>&1
+./acme.sh --install >/dev/null 2>&1
+cd
 curl https://get.acme.sh | sh -s email=$Aemail
 [[ -n $(/root/.acme.sh/acme.sh -v 2>/dev/null) ]] && green "安装acme.sh证书申请程序成功" || red "安装acme.sh证书申请程序失败" 
 bash /root/.acme.sh/acme.sh --upgrade --use-wget --auto-upgrade
@@ -89,7 +100,7 @@ yellow "建议一：更换下二级域名名称再尝试执行脚本（重要）
 green "例：原二级域名 x.ygkkk.eu.org 或 x.ygkkk.cf ，在cloudflare中重命名其中的x名称，确定并生效"
 echo
 yellow "建议二：更换下当前本地网络IP环境，再尝试执行脚本"
-rm -rf acme.sh
+rm -rf acme.sh && exit
 }
 if [[ -f /root/cert.crt && -f /root/private.key ]] && [[ -s /root/cert.crt && -s /root/private.key ]]; then
 if [[ -f '/etc/hysteria/config.json' ]]; then
@@ -131,7 +142,7 @@ readp "请输入解析完成的域名:" ym
 green "已输入的域名:$ym" && sleep 1
 freenom=`echo $ym | awk -F '.' '{print $NF}'`
 if [[ $freenom =~ tk|ga|gq|ml|cf ]]; then
-red "经检测，你正在使用freenom免费域名解析，不支持当前DNS API模式，脚本退出" && rm -rf acme.sh && exit 1
+red "经检测，你正在使用freenom免费域名解析，不支持当前DNS API模式，脚本退出" && rm -rf acme.sh && exit 
 fi
 domainIP=$(curl -s ipget.net/?ip=acme.sh."$ym")
 if [[ -n $(echo $domainIP | grep nginx) ]]; then
@@ -185,9 +196,10 @@ installCA
 checktls
 }
 wro(){
+v4v6
 if [[ -n $(echo $domainIP | grep nginx) ]]; then
 yellow "当前域名解析到的IP：无"
-red "域名解析无效，请检查域名是否填写正确或稍等几分钟等待解析完成再执行脚本" && rm -rf acme.sh && exit 1
+red "域名解析无效，请检查域名是否填写正确或稍等几分钟等待解析完成再执行脚本" && rm -rf acme.sh && exit 
 elif [[ -n $(echo $domainIP | grep ":") || -n $(echo $domainIP | grep ".") ]]; then
 if [[ $domainIP != $v4 ]] && [[ $domainIP != $v6 ]]; then
 yellow "当前域名解析到的IP：$domainIP"
@@ -195,7 +207,7 @@ red "当前域名解析的IP与当前VPS使用的IP不匹配"
 green "建议如下："
 yellow "1、请确保CDN小黄云关闭状态(仅限DNS)，其他域名解析网站设置同理"
 yellow "2、请检查域名解析网站设置的IP是否正确"
-rm -rf acme.sh && exit 1
+rm -rf acme.sh && exit 
 else
 green "恭喜，域名解析正确，当前域名解析到的IP：$domainIP"
 fi
@@ -218,7 +230,7 @@ else
 yellow "检测到正在使用WARP接管VPS出站，现执行临时关闭"
 systemctl stop wg-quick@wgcf >/dev/null 2>&1
 green "WARP已临时闭关"
-ab="1.选择standalone独立模式申请证书（仅需域名）,安装过程中将强制释放80端口，相关http应用端口可能都将失效，请自行处理。\n2.选择DNS API模式申请证书（需域名、ID、Key）\n0.返回上一层\n 请选择："
+ab="1.选择standalone独立模式申请证书（仅需域名）,安装过程中将强制释放80端口，相关http应用端口可能都将失效，请自行处理。\n2.选择DNS API模式申请证书（需域名、ID、Key），目前支持Cloudflare域名解析平台、腾讯域名解析平台、阿里域名解析平台\n0.返回上一层\n 请选择："
 readp "$ab" cd
 case "$cd" in 
 1 ) acme1 && acme2 && acme3 && ACMEstandaloneDNS;;
@@ -231,7 +243,7 @@ green "WARP已恢复开启"
 fi
 }
 Certificate(){
-[[ -z $(/root/.acme.sh/acme.sh -v 2>/dev/null) ]] && yellow "未安装acme.sh证书申请，无法执行" && rm -rf acme.sh && exit 1
+[[ -z $(/root/.acme.sh/acme.sh -v 2>/dev/null) ]] && yellow "未安装acme.sh证书申请，无法执行" && rm -rf acme.sh && exit 
 green "Main_Domainc下显示的域名就是已申请成功的域名证书，Renew下显示对应域名证书的自动续期时间点"
 bash /root/.acme.sh/acme.sh --list
 echo
@@ -242,11 +254,11 @@ bash /root/.acme.sh/acme.sh --remove -d ${ym} --ecc
 rm -rf cert.crt private.key
 green "撤销并删除${ym}域名证书成功"
 else
-red "未找到你输入的${ym}域名证书，请自行核实！"
+red "未找到你输入的${ym}域名证书，请自行核实！" && exit
 fi
 }
 acmerenew(){
-[[ -z $(/root/.acme.sh/acme.sh -v 2>/dev/null) ]] && yellow "未安装acme.sh证书申请，无法执行" && rm -rf acme.sh && exit 1
+[[ -z $(/root/.acme.sh/acme.sh -v 2>/dev/null) ]] && yellow "未安装acme.sh证书申请，无法执行" && rm -rf acme.sh && exit 
 green "Main_Domainc下显示的域名就是已申请成功的域名证书，Renew下显示对应域名证书的自动续期时间点"
 bash /root/.acme.sh/acme.sh --list
 echo
@@ -263,14 +275,14 @@ if [[ -n $(bash /root/.acme.sh/acme.sh --list | grep $ym) ]]; then
 bash /root/.acme.sh/acme.sh --renew -d ${ym} --force --ecc
 checktls
 else
-red "未找到你输入的${ym}域名证书，请自行核实！"
+red "未找到你输入的${ym}域名证书，请自行核实！" && exit
 fi
 ;;
 0 ) start_menu;;
 esac
 }
 uninstall(){
-[[ -z $(/root/.acme.sh/acme.sh -v 2>/dev/null) ]] && yellow "未安装acme.sh证书申请，无法执行" && rm -rf acme.sh && exit 1
+[[ -z $(/root/.acme.sh/acme.sh -v 2>/dev/null) ]] && yellow "未安装acme.sh证书申请，无法执行" && rm -rf acme.sh && exit 
 curl https://get.acme.sh | sh
 bash /root/.acme.sh/acme.sh --uninstall
 rm -rf cert.crt private.key
@@ -288,7 +300,7 @@ echo -e "${bblue}     ░██        ░${plain}██    ░██ ██    
 echo -e "${bblue}     ░██ ${plain}        ░██    ░░██        ░██ ░██       ░${red}██ ░██       ░██ ░██ ${plain}  "
 echo -e "${bblue}     ░█${plain}█          ░██ ██ ██         ░██  ░░${red}██     ░██  ░░██     ░██  ░░██ ${plain}  "
 green "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" 
-white "甬哥Gitlab项目  ：gitlab.com/rwkgyg"
+white "甬哥Gitlab项目  ：gitlab.com/rwkgyg"
 white "甬哥blogger博客 ：ygkkk.blogspot.com"
 white "甬哥YouTube频道 ：www.youtube.com/c/甬哥侃侃侃kkkyg"
 yellow "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" 
@@ -311,4 +323,3 @@ case "$NumberInput" in
 esac
 }   
 start_menu "first" 
-
