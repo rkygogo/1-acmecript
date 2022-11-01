@@ -141,19 +141,22 @@ fi
 installCA
 checktls
 }
+
 ACMEDNS(){
+green "提示：泛域名申请前须要在解析平上设置一个名称为 * 字符的解析记录（输入格式：*.一级主域）"
 readp "请输入解析完成的域名:" ym
 green "已输入的域名:$ym" && sleep 1
 freenom=`echo $ym | awk -F '.' '{print $NF}'`
 if [[ $freenom =~ tk|ga|gq|ml|cf ]]; then
 red "经检测，你正在使用freenom免费域名解析，不支持当前DNS API模式，脚本退出" && rm -rf acme.sh && exit 
 fi
-domainIP=$(curl -s ipget.net/?ip=acme.sh."$ym")
-if [[ -n $(echo $domainIP | grep nginx) ]]; then
-green "经检测，当前为单域名证书申请，请输入解析好的二级域名" && sleep 2
-domainIP=$(curl -s ipget.net/?ip="$ym")
+domainIP=$(curl -s ipget.net/?ip=$ym)
+if [[ -n $(echo $domainIP | grep nginx) && -n $(echo $ym | grep \*) ]]; then
+green "经检测，当前为泛域名证书申请，" && sleep 2
+abc=a$(echo $ym | tr -d '*')
+domainIP=$(curl -s ipget.net/?ip=$abc)
 else
-green "经检测，当前为泛域名证书申请，请直接输入一级主域名，不要出现 * 字样" && sleep 2
+green "经检测，当前为单域名证书申请，" && sleep 2
 fi
 wro
 echo
@@ -199,6 +202,7 @@ esac
 installCA
 checktls
 }
+
 wro(){
 v4v6
 if [[ -n $(echo $domainIP | grep nginx) ]]; then
@@ -311,7 +315,7 @@ white "甬哥YouTube频道 ：www.youtube.com/c/甬哥侃侃侃kkkyg"
 yellow "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" 
 yellow " 提示："
 yellow " 一、独立模式仅支持单域名证书申请"
-yellow " 二、DNS API模式不支持freenom免费域名申请，支持单域名与泛域名证书申请，其中泛域名申请须在解析平上设置一个名称为 * 字符的解析记录"
+yellow " 二、DNS API模式不支持freenom免费域名申请，支持单域名与泛域名证书申请，其中泛域名申请前须要在解析平上设置一个名称为 * 字符的解析记录"
 echo
 green " 1. acme.sh申请letsencrypt ECC证书（支持独立模式与DNS API模式） "
 green " 2. 查询已申请成功的域名及自动续期时间点；撤销并删除当前已申请的域名证书 "
