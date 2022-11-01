@@ -2,6 +2,7 @@
 red='\033[0;31m'
 bblue='\033[0;34m'
 plain='\033[0m'
+blue(){ echo -e "\033[36m\033[01m$1\033[0m";}
 red(){ echo -e "\033[31m\033[01m$1\033[0m";}
 green(){ echo -e "\033[32m\033[01m$1\033[0m";}
 yellow(){ echo -e "\033[33m\033[01m$1\033[0m";}
@@ -30,7 +31,6 @@ v4v6(){
 v6=$(curl -s6m5 https://ip.gs -k)
 v4=$(curl -s4m5 https://ip.gs -k)
 }
-
 
 acme1(){
 [[ $(type -P yum) ]] && yumapt='yum -y' || yumapt='apt -y'
@@ -102,17 +102,21 @@ echo
 yellow "建议二：更换下当前本地网络IP环境，再尝试执行脚本"
 rm -rf acme.sh && exit
 }
-if [[ -f /root/cert.crt && -f /root/private.key ]] && [[ -s /root/cert.crt && -s /root/private.key ]]; then
-if [[ -f '/etc/hysteria/config.json' ]]; then
-echo ${ym} > /etc/hysteria/ca.log
-fi
+if [[ -f /root/ygkkkca/cert.crt && -f /root/ygkkkca/private.key ]] && [[ -s /root/ygkkkca/cert.crt && -s /root/ygkkkca/private.key ]]; then
 sed -i '/--cron/d' /etc/crontab
 echo "0 0 * * * root bash /root/.acme.sh/acme.sh --cron -f >/dev/null 2>&1" >> /etc/crontab
-green "root目录下的域名证书申请成功或已存在！域名证书（cert.crt）和密钥（private.key）已保存到 /root 文件夹" 
+green "域名证书申请成功或已存在！域名证书（cert.crt）和密钥（private.key）已保存到 /root/ygkkkca文件夹内" 
 yellow "公钥文件crt路径如下，可直接复制"
-green "/root/cert.crt"
+green "/root/ygkkkca/cert.crt"
 yellow "密钥文件key路径如下，可直接复制"
-green "/root/private.key"
+green "/root/ygkkkca/private.key"
+if [[ -f '/usr/local/bin/hysteria' ]]; then
+blue "检测到hysteria，此证书自动应用" && echo $ym > /root/ygkkkca/ca.log
+elif [[ -f '/usr/bin/caddy' ]]; then
+blue "检测到naiveproxy，此证书自动应用" && echo $ym > /root/ygkkkca/ca.log
+elif [[ -f '/usr/bin/x-ui' ]]; then
+blue "检测到x-ui，此证书可在面版上手动填写应用" && echo $ym > /root/ygkkkca/ca.log
+fi
 rm -rf acme.sh
 else
 fail
@@ -120,7 +124,7 @@ fi
 }
 
 installCA(){
-bash ~/.acme.sh/acme.sh --install-cert -d ${ym} --key-file /root/private.key --fullchain-file /root/cert.crt --ecc
+bash ~/.acme.sh/acme.sh --install-cert -d ${ym} --key-file /root/ygkkkca/private.key --fullchain-file /root/ygkkkca/cert.crt --ecc
 }
 
 ACMEstandaloneDNS(){
@@ -128,16 +132,15 @@ readp "请输入解析完成的二级域名:" ym
 green "已输入的二级域名:$ym" && sleep 1
 domainIP=$(curl -s ipget.net/?ip="$ym")
 wro
-if [[ -n $(echo $domainIP | grep ".") ]]; then
+if [[ $domainIP = $v4 ]]; then
 bash /root/.acme.sh/acme.sh  --issue -d ${ym} --standalone -k ec-256 --server letsencrypt --insecure
 fi
-if [[ -n $(echo $domainIP | grep ":") ]]; then
+if [[ $domainIP = $v6 ]]; then
 bash /root/.acme.sh/acme.sh  --issue -d ${ym} --standalone -k ec-256 --server letsencrypt --listen-v6 --insecure
 fi
 installCA
 checktls
 }
-
 ACMEDNS(){
 readp "请输入解析完成的域名:" ym
 green "已输入的域名:$ym" && sleep 1
@@ -147,10 +150,10 @@ red "经检测，你正在使用freenom免费域名解析，不支持当前DNS A
 fi
 domainIP=$(curl -s ipget.net/?ip=acme.sh."$ym")
 if [[ -n $(echo $domainIP | grep nginx) ]]; then
-green "经检测，当前为单域名证书申请" && sleep 2
+green "经检测，当前为单域名证书申请，请输入解析好的二级域名" && sleep 2
 domainIP=$(curl -s ipget.net/?ip="$ym")
 else
-green "经检测，当前为泛域名证书申请" && sleep 2
+green "经检测，当前为泛域名证书申请，请直接输入一级主域名，不要出现 * 字样" && sleep 2
 fi
 wro
 echo
@@ -201,17 +204,27 @@ v4v6
 if [[ -n $(echo $domainIP | grep nginx) ]]; then
 yellow "当前域名解析到的IP：无"
 red "域名解析无效，请检查域名是否填写正确或稍等几分钟等待解析完成再执行脚本" && rm -rf acme.sh && exit 
+elif [[ -n $(echo $domainIP | grep ":") || -n $(echo $domainIP | grep ".") ]]; then
+if [[ $domainIP != $v4 ]] && [[ $domainIP != $v6 ]]; then
+yellow "当前域名解析到的IP：$domainIP"
+red "当前域名解析的IP与当前VPS使用的IP不匹配"
+green "建议如下："
+yellow "1、请确保CDN小黄云关闭状态(仅限DNS)，其他域名解析网站设置同理"
+yellow "2、请检查域名解析网站设置的IP是否正确"
+rm -rf acme.sh && exit 
 else
 green "恭喜，域名解析正确，当前域名解析到的IP：$domainIP"
+fi
 fi
 }
 
 acme(){
 yellow "稍等3秒，检测IP环境中"
+mkdir -p /root/ygkkkca
 wgcfv6=$(curl -s6m6 https://www.cloudflare.com/cdn-cgi/trace -k | grep warp | cut -d= -f2)
 wgcfv4=$(curl -s4m6 https://www.cloudflare.com/cdn-cgi/trace -k | grep warp | cut -d= -f2)
 if [[ ! $wgcfv4 =~ on|plus && ! $wgcfv6 =~ on|plus ]]; then
-ab="1.选择standalone独立模式申请证书（仅需域名），安装过程中将强制释放80端口，相关http应用端口可能都将失效，请自行处理。\n2.选择DNS API模式申请证书（需域名、ID、Key），目前支持Cloudflare域名解析平台、腾讯域名解析平台、阿里域名解析平台\n0.返回上一层\n 请选择："
+ab="1.选择独立模式申请证书（仅需域名，小白推荐），安装过程中将强制释放80端口\n2.选择DNS API模式申请证书（需域名、ID、Key），自动识别单域名与泛域名\n0.返回上一层\n 请选择："
 readp "$ab" cd
 case "$cd" in 
 1 ) acme1 && acme2 && acme3 && ACMEstandaloneDNS;;
@@ -222,7 +235,7 @@ else
 yellow "检测到正在使用WARP接管VPS出站，现执行临时关闭"
 systemctl stop wg-quick@wgcf >/dev/null 2>&1
 green "WARP已临时闭关"
-ab="1.选择standalone独立模式申请证书（仅需域名）,安装过程中将强制释放80端口，相关http应用端口可能都将失效，请自行处理。\n2.选择DNS API模式申请证书（需域名、ID、Key），目前支持Cloudflare域名解析平台、腾讯域名解析平台、阿里域名解析平台\n0.返回上一层\n 请选择："
+ab="1.选择独立模式申请证书（仅需域名，小白推荐），安装过程中将强制释放80端口\n2.选择DNS API模式申请证书（需域名、ID、Key），自动识别单域名与泛域名\n0.返回上一层\n 请选择："
 readp "$ab" cd
 case "$cd" in 
 1 ) acme1 && acme2 && acme3 && ACMEstandaloneDNS;;
@@ -243,7 +256,7 @@ readp "请输入要撤销并删除的域名证书（复制Main_Domain下显示�
 if [[ -n $(bash /root/.acme.sh/acme.sh --list | grep $ym) ]]; then
 bash /root/.acme.sh/acme.sh --revoke -d ${ym} --ecc
 bash /root/.acme.sh/acme.sh --remove -d ${ym} --ecc
-rm -rf cert.crt private.key
+rm -rf /root/ygkkkca
 green "撤销并删除${ym}域名证书成功"
 else
 red "未找到你输入的${ym}域名证书，请自行核实！" && exit
@@ -277,7 +290,7 @@ uninstall(){
 [[ -z $(/root/.acme.sh/acme.sh -v 2>/dev/null) ]] && yellow "未安装acme.sh证书申请，无法执行" && rm -rf acme.sh && exit 
 curl https://get.acme.sh | sh
 bash /root/.acme.sh/acme.sh --uninstall
-rm -rf cert.crt private.key
+rm -rf /root/ygkkkca
 rm -rf ~/.acme.sh acme.sh
 sed -i '/--cron/d' /etc/crontab
 [[ -z $(/root/.acme.sh/acme.sh -v 2>/dev/null) ]] && green "acme.sh卸载完毕" || red "acme.sh卸载失败"
@@ -297,10 +310,10 @@ white "甬哥blogger博客 ：ygkkk.blogspot.com"
 white "甬哥YouTube频道 ：www.youtube.com/c/甬哥侃侃侃kkkyg"
 yellow "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" 
 yellow " 提示："
-yellow " 一、standalone模式仅支持单域名证书申请"
-yellow " 二、DNS API模式不支持freenom免费域名申请，支持单域名与泛域名证书申请"
+yellow " 一、独立模式仅支持单域名证书申请"
+yellow " 二、DNS API模式不支持freenom免费域名申请，支持单域名与泛域名证书申请，其中泛域名申请须在解析平上设置一个名称为 * 字符的解析记录"
 echo
-green " 1. acme.sh申请letsencrypt ECC证书（支持standalone模式与DNS API模式） "
+green " 1. acme.sh申请letsencrypt ECC证书（支持独立模式与DNS API模式） "
 green " 2. 查询已申请成功的域名及自动续期时间点；撤销并删除当前已申请的域名证书 "
 green " 3. 手动一键续期或指定续期的域名证书 "
 green " 4. 卸载一键ACME证书申请脚本 "
@@ -315,3 +328,4 @@ case "$NumberInput" in
 esac
 }   
 start_menu "first" 
+
